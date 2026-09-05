@@ -41,7 +41,7 @@ class TestAccountService(TestCase):
 
     def setUp(self):
         """Runs before each test"""
-        db.session.query(Account).delete()  # clean up the last tests
+        db.session.query(Account).delete()
         db.session.commit()
 
         self.client = app.test_client()
@@ -57,17 +57,24 @@ class TestAccountService(TestCase):
     def _create_accounts(self, count):
         """Factory method to create accounts in bulk"""
         accounts = []
+
         for _ in range(count):
             account = AccountFactory()
-            response = self.client.post(BASE_URL, json=account.serialize())
+            response = self.client.post(
+                BASE_URL,
+                json=account.serialize()
+            )
+
             self.assertEqual(
                 response.status_code,
                 status.HTTP_201_CREATED,
                 "Could not create test Account",
             )
+
             new_account = response.get_json()
             account.id = new_account["id"]
             accounts.append(account)
+
         return accounts
 
     ######################################################################
@@ -83,18 +90,23 @@ class TestAccountService(TestCase):
         """It should be healthy"""
         resp = self.client.get("/health")
         self.assertEqual(resp.status_code, 200)
+
         data = resp.get_json()
         self.assertEqual(data["status"], "OK")
 
     def test_create_account(self):
         """It should Create a new Account"""
         account = AccountFactory()
+
         response = self.client.post(
             BASE_URL,
             json=account.serialize(),
             content_type="application/json"
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED
+        )
 
         # Make sure location header is set
         location = response.headers.get("Location", None)
@@ -102,37 +114,88 @@ class TestAccountService(TestCase):
 
         # Check the data is correct
         new_account = response.get_json()
+
         self.assertEqual(new_account["name"], account.name)
         self.assertEqual(new_account["email"], account.email)
         self.assertEqual(new_account["address"], account.address)
-        self.assertEqual(new_account["phone_number"], account.phone_number)
-        self.assertEqual(new_account["date_joined"], str(account.date_joined))
+        self.assertEqual(
+            new_account["phone_number"],
+            account.phone_number
+        )
+        self.assertEqual(
+            new_account["date_joined"],
+            str(account.date_joined)
+        )
 
     def test_bad_request(self):
         """It should not Create an Account when sending the wrong data"""
-        response = self.client.post(BASE_URL, json={"name": "not enough data"})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.post(
+            BASE_URL,
+            json={"name": "not enough data"}
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST
+        )
 
     def test_unsupported_media_type(self):
         """It should not Create an Account when sending the wrong media type"""
         account = AccountFactory()
+
         response = self.client.post(
             BASE_URL,
             json=account.serialize(),
             content_type="test/html"
         )
-        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+        )
+
+    ######################################################################
+    # READ AN ACCOUNT
+    ######################################################################
 
     def test_get_account(self):
         """It should Read a single Account"""
         account = self._create_accounts(1)[0]
+
         resp = self.client.get(
-            f"{BASE_URL}/{account.id}", content_type="application/json"
+            f"{BASE_URL}/{account.id}",
+            content_type="application/json"
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(
+            resp.status_code,
+            status.HTTP_200_OK
+        )
+
         data = resp.get_json()
         self.assertEqual(data["name"], account.name)
+
     def test_get_account_not_found(self):
         """It should not Read an Account that is not found"""
         resp = self.client.get(f"{BASE_URL}/0")
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(
+            resp.status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+    ######################################################################
+    # LIST ALL ACCOUNTS
+    ######################################################################
+
+    def test_get_account_list(self):
+        """It should Get a list of Accounts"""
+        self._create_accounts(5)
+
+        resp = self.client.get(BASE_URL)
+
+        self.assertEqual(
+            resp.status_code,
+            status.HTTP_200_OK
+        )
+
+        data = resp.get_json()
+        self.assertEqual(len(data), 5)
