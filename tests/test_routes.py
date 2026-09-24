@@ -56,6 +56,7 @@ class TestAccountService(TestCase):
     def tearDown(self):
         """Runs once after each test case"""
         db.session.remove()
+
     def test_cors_security(self):
         """It should return a CORS header"""
         response = self.client.get(
